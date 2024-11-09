@@ -1,1 +1,40 @@
+--Sección 1: Uso de Índices.
+CREATE INDEX idx_apellido ON empleados(apellido);
+SELECT * FROM empleados WHERE apellido = 'Pérez';
+SHOW INDEX FROM empleados;
 
+--Sección 2: Subconsultas.
+SELECT nombre, apellido, salario 
+FROM empleados 
+WHERE salario > (SELECT AVG(salario) FROM empleados);
+SELECT nombre, apellido 
+FROM empleados 
+WHERE departamento_id IN (SELECT id FROM departamentos WHERE ubicacion = 'Planta 2');
+
+--Sección 3: Vistas.
+CREATE VIEW vista_empleados_departamentos AS
+SELECT empleados.nombre, empleados.apellido, departamentos.nombre AS departamento
+FROM empleados
+JOIN departamentos ON empleados.departamento_id = departamentos.id;
+SELECT * FROM vista_empleados_departamentos;
+CREATE OR REPLACE VIEW vista_empleados_departamentos AS
+SELECT empleados.nombre, empleados.apellido, empleados.salario, departamentos.nombre AS departamento
+FROM empleados
+JOIN departamentos ON empleados.departamento_id = departamentos.id;
+
+--Sección 4: Transacciones y Control de Integridad.
+START TRANSACTION;
+INSERT INTO empleados (nombre, apellido, salario, departamento_id) VALUES ('María', 'Fernández', 70000, 1);
+ROLLBACK;
+START TRANSACTION;
+INSERT INTO empleados (nombre, apellido, salario, departamento_id) VALUES ('Pedro', 'Sánchez', 65000, 2);
+COMMIT;
+
+--Sección 5: Optimización de Consultas.
+EXPLAIN SELECT * FROM empleados WHERE salario > 50000;
+CREATE INDEX idx_salario ON empleados(salario);
+SELECT * FROM empleados WHERE salario > 50000;
+
+--Sección 6: Manejo de Errores y Depuración.
+SELECT * FORM empleados;  -- Error en la palabra FORM
+SELECT * FROM empleados;
