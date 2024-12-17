@@ -1,0 +1,216 @@
+// Ruta para la página principal
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Ruta para guardar datos de los pacientes en la base de datos
+app.post('/submit-data', (req, res) => {
+    const { name, apellido, salario, departamento, fecha } = req.body;
+
+    const query = 'INSERT INTO empleados (nombre, apellido, salario, departamento_id, fecha_contratacion) VALUES (?, ?, ?, ?, ?)';
+    db.query(query, [name, apellido, salario, departamento, fecha], (err, result) => {
+        if (err) {
+            console.error('Error al guardar en la base de datos:', err);
+            return res.status(500).send('Error al guardar los datos en la base de datos.');
+        }
+        res.send(`Empleado ${name} guardado correctamente en la base de datos.`);
+    });
+});
+
+// Ruta para mostrar empleados y departamentos en una tabla HTML USANDO JOIN
+app.get('/empleados', (req, res) => {
+    const query = `
+        SELECT empleados.id, empleados.nombre, empleados.apellido, departamentos.nombre AS departamento 
+        FROM empleados
+        JOIN departamentos ON empleados.departamento_id = departamentos.id;
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error al obtener empleados:', err);
+            return res.status(500).send('Error al obtener los empleados de la base de datos.');
+        }
+
+        // Generar la tabla HTML con los resultados
+        let html = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Empleados</title>
+                <style>
+                    table {
+                        width: 80%;
+                        margin: 20px auto;
+                        border-collapse: collapse;
+                    }
+                    th, td {
+                        padding: 10px;
+                        border: 1px solid #ccc;
+                        text-align: left;
+                    }
+                    th {
+                        background-color: #f4f4f4;
+                    }
+                </style>
+            </head>
+            <body>
+                <h1 style="text-align: center;">Lista de Empleados</h1>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Apellido</th>
+                            <th>Departamento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        results.forEach(row => {
+            html += `
+                <tr>
+                    <td>${row.id}</td>
+                    <td>${row.nombre}</td>
+                    <td>${row.apellido}</td>
+                    <td>${row.departamento}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+                <button onclick="window.location.href='/'">Volver</button>
+            </body>
+            </html>
+        `;
+
+        // Enviar la tabla HTML como respuesta
+        res.send(html);
+    });
+});
+
+// Ruta para eliminar un empleado solo por ID
+app.post('/delete', (req, res) => {
+    const { id } = req.body;  // Recibir el ID del empleado
+    
+    if (!id) {
+        return res.status(400).send('El ID del empleado es obligatorio.');
+    }
+
+    const query = `
+        DELETE FROM empleados
+        WHERE id = ?
+    `;
+
+    db.query(query, [id], (err, result) => {
+        if (err) {
+            console.error('Error al eliminar el empleado:', err);
+            return res.status(500).send('Hubo un error al eliminar el empleado.');
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).send('No se encontró un empleado con ese ID.');
+        }
+
+        res.send(`Empleado con ID ${id} eliminado correctamente.`);
+    });
+});
+
+// Ruta para actualizar los datos de un empleado
+app.post('/update-employee', (req, res) => {
+    const { id, nombre, apellido, salario, departamento, fecha_contratacion } = req.body;
+
+    if (!id || !nombre || !apellido || !salario || !departamento || !fecha_contratacion) {
+        return res.status(400).send('Todos los campos son obligatorios.');
+    }
+
+    // Consulta SQL para actualizar los datos del empleado
+    const query = `
+        UPDATE empleados
+        SET nombre = ?, apellido = ?, salario = ?, departamento_id = ?, fecha_contratacion = ?
+        WHERE id = ?
+    `;
+
+    db.query(query, [nombre, apellido, salario, departamento, fecha_contratacion, id], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar el empleado:', err);
+            return res.status(500).send('Hubo un error al actualizar los datos del empleado.');
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).send('No se encontró un empleado con ese ID.');
+        }
+
+        res.send(`Empleado con ID ${id} actualizado correctamente.`);
+    });
+});
+
+// Ruta para obtener el salario promedio de los empleados
+app.get('/promedio', (req, res) => {
+    // Consulta SQL para calcular el salario promedio
+    const query = 'SELECT AVG(salario) AS salario_promedio FROM empleados';
+
+    db.query(query, (err, result) => {
+        if (err) {
+            console.error('Error al obtener el salario promedio:', err);
+            return res.status(500).send('Error al calcular el salario promedio.');
+        }
+
+        // Devolver el salario promedio al cliente
+        const salarioPromedio = result[0].salario_promedio;
+        res.send(`El salario promedio de los empleados es: ${salarioPromedio}`);
+    });
+});
+ 
+// Ruta para obtener los datos de la vista de empleados y departamentos
+app.get('/vista-empleados', (req, res) => {
+    const query = 'SELECT * FROM vista_empleados_departamento';
+
+    db.query(query, (err, result) => {
+        if (err) {
+            console.error('Error al obtener los datos de la vista:', err);
+            return res.status(500).send('Error al obtener los datos de la vista.');
+        }
+
+        // Crear la tabla HTML con los datos de la vista
+        let html = `
+            <h1>Lista de Empleados y Departamentos</h1>
+            <table border="1" cellpadding="10" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Salario</th>
+                        <th>Fecha de Contratación</th>
+                        <th>Departamento</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        // Recorrer el resultado de la vista y agregar cada empleado en una fila de la tabla
+        result.forEach(employee => {
+            html += `
+                <tr>
+                    <td>${employee.id}</td>
+                    <td>${employee.nombre}</td>
+                    <td>${employee.apellido}</td>
+                    <td>${employee.salario}</td>
+                    <td>${employee.fecha_contratacion}</td>
+                    <td>${employee.departamento}</td>
+                </tr>
+            `;
+        });
+
+        // Cerrar las etiquetas de la tabla
+        html += `</tbody></table>`;
+
+        // Enviar el HTML como respuesta
+        res.send(html);
+    });
+});
